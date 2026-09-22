@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>To-Do List</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4d;
+      --text: #e8eef5;
+      --muted: #8b9bb4;
+      --accent: #5b8cff;
+      --accent-hover: #7aa3ff;
+      --danger: #ff6b7a;
+      --danger-hover: #ff8a96;
+      --done: #3dd68c;
+      --shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(ellipse at top, #1c2a44 0%, transparent 55%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 16px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 480px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 28px 24px 20px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 22px;
+    }
+
+    form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: #121922;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .add-btn {
+      background: var(--accent);
+      color: #fff;
+      padding: 11px 16px;
+    }
+
+    .add-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 12px;
+    }
+
+    ul {
+      list-style: none;
+    }
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #121922;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+
+    li.completed .task-text {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .task-text {
+      flex: 1;
+      word-break: break-word;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--done);
+      cursor: pointer;
+    }
+
+    .delete-btn {
+      background: transparent;
+      color: var(--danger);
+      padding: 6px 8px;
+    }
+
+    .delete-btn:hover {
+      color: var(--danger-hover);
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 28px 8px;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>To-Do List</h1>
+    <p class="subtitle">Add tasks, check them off, and they stay after refresh.</p>
+
+    <form id="todo-form">
+      <input
+        id="todo-input"
+        type="text"
+        maxlength="200"
+        placeholder="What needs to be done?"
+        autocomplete="off"
+        required
+      />
+      <button class="add-btn" type="submit">Add</button>
+    </form>
+
+    <div class="stats">
+      <span id="count-label">0 tasks</span>
+      <span id="done-label">0 completed</span>
+    </div>
+
+    <ul id="todo-list"></ul>
+    <p id="empty-state" class="empty">No tasks yet. Add one above.</p>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "todo-list-items";
+
+    const form = document.getElementById("todo-form");
+    const input = document.getElementById("todo-input");
+    const list = document.getElementById("todo-list");
+    const emptyState = document.getElementById("empty-state");
+    const countLabel = document.getElementById("count-label");
+    const doneLabel = document.getElementById("done-label");
+
+    let tasks = loadTasks();
+
+    function loadTasks() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveTasks() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+
+    function render() {
+      list.innerHTML = "";
+      emptyState.hidden = tasks.length > 0;
+
+      tasks.forEach((task) => {
+        const li = document.createElement("li");
+        if (task.completed) li.classList.add("completed");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = task.completed;
+        checkbox.setAttribute("aria-label", "Mark complete");
+        checkbox.addEventListener("change", () => toggleTask(task.id));
+
+        const text = document.createElement("span");
+        text.className = "task-text";
+        text.textContent = task.text;
+
+        const del = document.createElement("button");
+        del.className = "delete-btn";
+        del.type = "button";
+        del.setAttribute("aria-label", "Delete task");
+        del.textContent = "Delete";
+        del.addEventListener("click", () => deleteTask(task.id));
+
+        li.append(checkbox, text, del);
+        list.appendChild(li);
+      });
+
+      const done = tasks.filter((t) => t.completed).length;
+      countLabel.textContent = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`;
+      doneLabel.textContent = `${done} completed`;
+    }
+
+    function addTask(text) {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+
+      tasks.push({
+        id: crypto.randomUUID(),
+        text: trimmed,
+        completed: false,
+      });
+      saveTasks();
+      render();
+    }
+
+    function toggleTask(id) {
+      tasks = tasks.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      );
+      saveTasks();
+      render();
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter((task) => task.id !== id);
+      saveTasks();
+      render();
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      addTask(input.value);
+      input.value = "";
+      input.focus();
+    });
+
+    render();
+  </script>
+</body>
+</html>
